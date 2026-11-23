@@ -13,6 +13,8 @@ namespace ScopeCreep.Game;
 
 public partial class BattleScene : Control
 {
+    [Export] private Control screen = null!;   // everything that shakes when a hero is hit
+
     [ExportGroup("Top bar")]
     [Export] private Label round_label = null!;
     [Export] private Label phase_label = null!;
@@ -37,8 +39,9 @@ public partial class BattleScene : Control
     [Export] private Label   result_label   = null!;
     [Export] private Button  restart_button = null!;
 
-    private Battle      battle      = null!;
-    private HeroPanel[] hero_panels = [];
+    private Battle       battle        = null!;
+    private HeroPanel[]  hero_panels   = [];
+    private DefenseLayer defense_layer = null!;
 
     private (Combatant.Hero user, Ability.Support ability)? pending_support;
     private bool is_boss_acting;
@@ -65,7 +68,7 @@ public partial class BattleScene : Control
         sp_bar.MaxValue      = BattleState.SP_CAP;
 
         battle.state_changed += refresh;
-        battle.damaged       += (who, amount) => writeLog($"{who.name} takes {amount} damage");
+        battle.damaged       += onDamaged;
         battle.missed        += who => writeLog($"Missed {who.name}!");
         battle.phase_changed += phase => writeLog($"The Ramen Bowl enters {phase}!");
         battle.defended      += (hero, result) => writeLog(describeDefense(hero, result));
@@ -165,8 +168,11 @@ public partial class BattleScene : Control
         writeLog("— The Ramen Bowl attacks —");
 
         // short pause so the boss turn reads as a turn; replaced by animations later
-        await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
         await battle.runBossTurn();
+
+        // let the hit / dodge / parry animation finish before the heroes can act
+        await ToSignal(GetTree().CreateTimer(DefenseLayer.OUTCOME_TIME), SceneTreeTimer.SignalName.Timeout);
 
         is_boss_acting = false;
         refresh();
@@ -178,15 +184,30 @@ public partial class BattleScene : Control
      */
     private void setupDefense(BattleState state)
     {
-        var defense_layer = new DefenseLayer();
+        defense_layer = new DefenseLayer();
         AddChild(defense_layer);
         MoveChild(defense_layer, end_screen.GetIndex());   // above the battlefield, below the end screen
 
-        defense_layer.setup(boss_sprite, [
+        defense_layer.setup(boss_sprite, screen, [
             (state.heroes[0], coder_sprite,    "defend_coder",    Key.F),
             (state.heroes[1], designer_sprite, "defend_designer", Key.J),
         ]);
         battle.defense_input = defense_layer;
+    }
+
+
+    /**
+     *  Boss damage lands on the impact, so the HP bar drops right away.
+     */
+    private void onDamaged(Combatant who, int amount)
+    {
+        writeLog($"{who.name} takes {amount} damage");
+
+        if (who is Combatant.Hero hero)
+        {
+            defense_layer.showDamage(hero, amount);
+            refresh();
+        }
     }
 
 

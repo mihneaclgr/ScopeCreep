@@ -8,6 +8,6 @@ public class StubBrain : I_BossBrain
 {
     public BossAttack pickAttack(BattleState state)
     {
-        return new BossAttack("Flying Fists", 8, false);
+        return new BossAttack("Flying Fists", 12, false);
     }
 }

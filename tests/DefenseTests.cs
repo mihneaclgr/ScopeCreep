@@ -29,13 +29,13 @@ public class DefenseTests
 
 
     [Theory]
-    [InlineData(0.0,   DefenseResult.PARRY)]
-    [InlineData(0.05,  DefenseResult.PARRY)]
-    [InlineData(-0.05, DefenseResult.PARRY)]
-    [InlineData(0.06,  DefenseResult.DODGE)]
-    [InlineData(-0.2,  DefenseResult.DODGE)]
-    [InlineData(0.21,  DefenseResult.HIT)]
-    [InlineData(-1.0,  DefenseResult.HIT)]
+    [InlineData(0.0,                                 DefenseResult.PARRY)]
+    [InlineData(DefenseRules.PARRY_WINDOW,           DefenseResult.PARRY)]
+    [InlineData(-DefenseRules.PARRY_WINDOW,          DefenseResult.PARRY)]
+    [InlineData(DefenseRules.PARRY_WINDOW + 0.01,    DefenseResult.DODGE)]
+    [InlineData(-DefenseRules.DODGE_WINDOW,          DefenseResult.DODGE)]
+    [InlineData(DefenseRules.DODGE_WINDOW + 0.01,    DefenseResult.HIT)]
+    [InlineData(-1.0,                                DefenseResult.HIT)]
     public void pressIsJudgedByDistanceFromImpact(double press_offset, DefenseResult expected)
     {
         Assert.Equal(expected, DefenseRules.judge(press_offset));
@@ -50,14 +50,14 @@ public class DefenseTests
 
 
     [Fact]
-    public void windupStaysInRange()
+    public void tellStaysInRange()
     {
         var rng = new Random(1);
 
         for (int i = 0; i < 100; i++)
         {
-            double windup = DefenseRules.rollWindup(rng);
-            Assert.InRange(windup, DefenseRules.MIN_WINDUP, DefenseRules.MAX_WINDUP);
+            double tell = DefenseRules.rollTell(rng);
+            Assert.InRange(tell, DefenseRules.MIN_TELL, DefenseRules.MAX_TELL);
         }
     }
 
@@ -65,11 +65,28 @@ public class DefenseTests
     [Fact]
     public async Task hitDealsTheAttackDamage()
     {
-        var battle = newBattle(new FixedDefense(DefenseResult.HIT));
+        var battle = newBattle(new FixedDefense(DefenseResult.HIT), new FixedBrain(new BossAttack("Flying Fists", 8, false)));
 
         await battle.runBossTurn();
 
         Assert.Equal(8, missingHp(battle));
+    }
+
+
+    [Fact]
+    public async Task eachTargetIsDamagedAsSoonAsItsDefenseIsDecided()
+    {
+        var defense = new PendingDefense();
+        var battle  = newBattle(defense, new FixedBrain(new BossAttack("Scalding Broth", 5, true)));
+        var coder   = battle.state.heroes[0];
+
+        var turn = battle.runBossTurn();
+        defense.pending[coder].SetResult(DefenseResult.HIT);
+
+        Assert.Equal(coder.max_hp - 5, coder.hp);   // the designer hasn't answered yet
+
+        defense.pending[battle.state.heroes[1]].SetResult(DefenseResult.DODGE);
+        await turn;
     }
 
 

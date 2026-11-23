@@ -77,13 +77,9 @@ public class Battle
             ? state.heroes.Where(it => !it.is_down).ToList()
             : new List<Combatant.Hero> { pickRandomHero() };
 
-        // every target defends at the same time (an attack on both heroes needs both keys timed)
-        var results = await Task.WhenAll(targets.Select(it => defense_input.resolve(attack, it)));
-
-        for (int i = 0; i < targets.Count; i++)
-        {
-            applyDefenseResult(targets[i], attack, results[i]);
-        }
+        // every target defends at the same time (an attack on both heroes needs both keys timed),
+        // and each result lands as soon as that target's defense is decided
+        await Task.WhenAll(targets.Select(async it => applyDefenseResult(it, attack, await defense_input.resolve(attack, it))));
 
         endRound();
     }

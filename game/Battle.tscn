@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bflbirir583gv" path="res://BattleScene.cs" id="1_u8cu3"]
 [ext_resource type="PackedScene" uid="uid://staw7fvjyich" path="res://HeroPanel.tscn" id="2_lul25"]
 
-[node name="Battle" type="Control" unique_id=1898986407 node_paths=PackedStringArray("round_label", "phase_label", "boss_sprite", "boss_hp_bar", "boss_hp_label", "coder_sprite", "designer_sprite", "coder_panel", "designer_panel", "sp_label", "sp_bar", "log", "target_hint", "end_screen", "result_label", "restart_button")]
+[node name="Battle" type="Control" unique_id=1898986407 node_paths=PackedStringArray("screen", "round_label", "phase_label", "boss_sprite", "boss_hp_bar", "boss_hp_label", "coder_sprite", "designer_sprite", "coder_panel", "designer_panel", "sp_label", "sp_bar", "log", "target_hint", "end_screen", "result_label", "restart_button")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,6 +11,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_u8cu3")
+screen = NodePath("Margin")
 round_label = NodePath("Margin/Layout/Topbar/RoundLabel")
 phase_label = NodePath("Margin/Layout/Topbar/PhaseLabel")
 boss_sprite = NodePath("Margin/Layout/Battlefield/BossArea/BossSprite")
