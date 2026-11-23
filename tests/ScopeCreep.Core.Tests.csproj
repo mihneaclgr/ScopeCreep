@@ -21,9 +21,5 @@
   <ItemGroup>
     <ProjectReference Include="..\core\ScopeCreep.Core.csproj" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <InternalsVisibleTo Include="ScopeCreep.Core.Tests" />
-  </ItemGroup>
 
 </Project>

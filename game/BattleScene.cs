@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Godot;
 using ScopeCreep.Core;
+using ScopeCreep.Core.defense;
 using ScopeCreep.Core.enums;
 using ScopeCreep.Core.model;
+using ScopeCreep.Game.defense;
 
 namespace ScopeCreep.Game;
 
@@ -16,9 +18,11 @@ public partial class BattleScene : Control
     [Export] private Label phase_label = null!;
 
     [ExportGroup("Battlefield")]
-    [Export] private ColorRect   boss_sprite   = null!;
-    [Export] private ProgressBar boss_hp_bar   = null!;
-    [Export] private Label       boss_hp_label = null!;
+    [Export] private ColorRect   boss_sprite     = null!;
+    [Export] private ProgressBar boss_hp_bar     = null!;
+    [Export] private Label       boss_hp_label   = null!;
+    [Export] private ColorRect   coder_sprite    = null!;
+    [Export] private ColorRect   designer_sprite = null!;
 
     [ExportGroup("Bottom panel")]
     [Export] private HeroPanel     coder_panel    = null!;
@@ -64,6 +68,9 @@ public partial class BattleScene : Control
         battle.damaged       += (who, amount) => writeLog($"{who.name} takes {amount} damage");
         battle.missed        += who => writeLog($"Missed {who.name}!");
         battle.phase_changed += phase => writeLog($"The Ramen Bowl enters {phase}!");
+        battle.defended      += (hero, result) => writeLog(describeDefense(hero, result));
+
+        setupDefense(state);
 
         restart_button.Pressed += () => GetTree().ReloadCurrentScene();
 
@@ -164,6 +171,32 @@ public partial class BattleScene : Control
         is_boss_acting = false;
         refresh();
     }
+
+
+    /**
+     *  Replace the "no defense" stub with the dodge & parry quick time event.
+     */
+    private void setupDefense(BattleState state)
+    {
+        var defense_layer = new DefenseLayer();
+        AddChild(defense_layer);
+        MoveChild(defense_layer, end_screen.GetIndex());   // above the battlefield, below the end screen
+
+        defense_layer.setup(boss_sprite, [
+            (state.heroes[0], coder_sprite,    "defend_coder",    Key.F),
+            (state.heroes[1], designer_sprite, "defend_designer", Key.J),
+        ]);
+        battle.defense_input = defense_layer;
+    }
+
+
+    private static string describeDefense(Combatant.Hero hero, DefenseResult result) => result switch
+    {
+        DefenseResult.HIT   => $"{hero.name} gets hit",
+        DefenseResult.DODGE => $"{hero.name} dodges!",
+        DefenseResult.PARRY => $"{hero.name} parries! +{DefenseRules.PARRY_SP_GAIN} SP",
+        _ => throw new UnreachableException()
+    };
 
 
     private void writeLog(string line) => log.AppendText(line + "\n");

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using ScopeCreep.Core.defense;
 using ScopeCreep.Core.enums;
 using ScopeCreep.Core.model;
 using ScopeCreep.Core.seams;
@@ -14,10 +16,11 @@ public class Battle
     public I_BossBrain    boss_brain    = new StubBrain();
     public I_DefenseInput defense_input = new NoDefense();
 
-    public event Action<Combatant, int>? damaged;
-    public event Action<Combatant>?      missed;
-    public event Action<BossPhase>?      phase_changed;
-    public event Action?                 state_changed;
+    public event Action<Combatant, int>?                damaged;
+    public event Action<Combatant>?                     missed;
+    public event Action<BossPhase>?                     phase_changed;
+    public event Action?                                state_changed;
+    public event Action<Combatant.Hero, DefenseResult>? defended;
 
     public bool is_hero_phase_over => state.heroes.All(it => it.has_acted || it.is_down);
     
@@ -74,17 +77,38 @@ public class Battle
             ? state.heroes.Where(it => !it.is_down).ToList()
             : new List<Combatant.Hero> { pickRandomHero() };
 
-        foreach (Combatant.Hero target in targets)
-        {
-            var attack_result = await defense_input.resolve(attack, target);
+        // every target defends at the same time (an attack on both heroes needs both keys timed)
+        var results = await Task.WhenAll(targets.Select(it => defense_input.resolve(attack, it)));
 
-            if (attack_result == DefenseResult.HIT)
-            {
-                dealDamageToHero(target, attack.damage);
-            }
+        for (int i = 0; i < targets.Count; i++)
+        {
+            applyDefenseResult(targets[i], attack, results[i]);
         }
 
         endRound();
+    }
+
+
+    /**
+     *  Hit: the hero takes the attack. Dodge: nothing happens. Parry: nothing happens and the heroes counter.
+     */
+    private void applyDefenseResult(Combatant.Hero target, BossAttack attack, DefenseResult result)
+    {
+        defended?.Invoke(target, result);
+
+        switch (result)
+        {
+            case DefenseResult.HIT:
+                dealDamageToHero(target, attack.damage);
+                break;
+            case DefenseResult.DODGE:
+                break;
+            case DefenseResult.PARRY:
+                gainSpiritPoints(DefenseRules.PARRY_SP_GAIN);
+                break;
+            default:
+                throw new UnreachableException();
+        }
     }
 
 
